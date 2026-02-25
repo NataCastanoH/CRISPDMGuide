@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRISP-DM — El Estándar de Oro</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: rgba(255,255,255,0.07);
+    --gold: #e8c547;
+    --teal: #2dd4bf;
+    --violet: #818cf8;
+    --rose: #fb7185;
+    --sky: #38bdf8;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --accent: #2dd4bf;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  .wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    text-align: center;
+    margin-bottom: 64px;
+    animation: fadeDown 0.8s ease both;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 16px;
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid rgba(45,212,191,0.3);
+    border-radius: 2px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, var(--gold) 50%, var(--teal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 16px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── CYCLE WHEEL ─── */
+  .cycle-section {
+    margin-bottom: 64px;
+    animation: fadeUp 0.8s 0.2s ease both;
+  }
+
+  .cycle-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .wheel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+
+  .wheel-svg-wrap {
+    position: relative;
+    width: 340px;
+    height: 340px;
+    flex-shrink: 0;
+  }
+
+  .wheel-svg-wrap svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .phase-segment {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .phase-segment:hover { opacity: 0.85; }
+  .phase-segment.active path { filter: brightness(1.3); }
+
+  /* Rotating arrows */
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .spinner-ring {
+    animation: spin 20s linear infinite;
+    transform-origin: 170px 170px;
+  }
+
+  /* Detail panel */
+  .phase-panel {
+    flex: 1;
+    min-width: 260px;
+    max-width: 420px;
+  }
+
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    display: none;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.3s ease both;
+  }
+
+  .phase-card.visible { display: block; }
+
+  .phase-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-color, var(--teal));
+  }
+
+  .phase-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 64px;
+    font-weight: 900;
+    color: var(--card-color, var(--teal));
+    opacity: 0.12;
+    position: absolute;
+    right: 16px;
+    top: 8px;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .phase-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--card-color, var(--teal));
+    margin-bottom: 8px;
+  }
+
+  .phase-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+
+  .phase-desc {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #94a3b8;
+    margin-bottom: 20px;
+  }
+
+  .task-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-list li {
+    font-size: 13px;
+    color: #cbd5e1;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  .task-list li::before {
+    content: '→';
+    color: var(--card-color, var(--teal));
+    font-family: 'DM Mono', monospace;
+    flex-shrink: 0;
+    font-size: 12px;
+    margin-top: 1px;
+  }
+
+  .hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 16px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ─── METRICS STRIP ─── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 64px;
+    animation: fadeUp 0.8s 0.35s ease both;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 20px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .metric-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .metric-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .metric-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+  }
+
+  /* ─── FLOW DIAGRAM ─── */
+  .flow-section {
+    margin-bottom: 64px;
+    animation: fadeUp 0.8s 0.5s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .section-header .line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section-header h2 {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    position: relative;
+  }
+
+  .flow-step {
+    text-align: center;
+    padding: 20px 8px;
+    position: relative;
+  }
+
+  .flow-step::after {
+    content: '';
+    position: absolute;
+    top: 32px;
+    right: -4px;
+    width: 8px;
+    height: 1px;
+    background: var(--border);
+    z-index: 1;
+  }
+  .flow-step:last-child::after { display: none; }
+
+  .flow-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    font-size: 22px;
+    border: 2px solid transparent;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .flow-step:hover .flow-icon {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px var(--icon-color);
+  }
+
+  .flow-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  /* ─── TIPS GRID ─── */
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    animation: fadeUp 0.8s 0.65s ease both;
+  }
+
+  .tip-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .tip-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+
+  .tip-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--tc, var(--teal));
+    transform: scaleX(0);
+    transition: transform 0.3s;
+    transform-origin: left;
+  }
+  .tip-card:hover::after { transform: scaleX(1); }
+
+  .tip-icon { font-size: 28px; margin-bottom: 16px; }
+
+  .tip-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .tip-body {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    margin-top: 80px;
+    text-align: center;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    animation: fadeUp 0.8s 0.8s ease both;
+  }
+
+  footer a { color: var(--teal); text-decoration: none; }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @media (max-width: 640px) {
+    .flow-grid { grid-template-columns: repeat(3, 1fr); }
+    .wheel-container { flex-direction: column; }
+    .wheel-svg-wrap { width: 280px; height: 280px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <span class="eyebrow">Metodología · Data Science</span>
+    <h1>CRISP-DM</h1>
+    <p class="subtitle">Cross-Industry Standard Process for Data Mining · El estándar de oro para proyectos de datos</p>
+  </header>
+
+  <!-- METRICS -->
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-val" style="color:#2dd4bf">6</div>
+      <div class="metric-label">Fases del<br>ciclo de vida</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:#e8c547">80%</div>
+      <div class="metric-label">Tiempo dedicado a<br>preparación de datos</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:#818cf8">∞</div>
+      <div class="metric-label">Iteraciones<br>posibles</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:#fb7185">1996</div>
+      <div class="metric-label">Año de<br>creación</div>
+    </div>
+  </div>
+
+  <!-- WHEEL + DETAIL -->
+  <div class="cycle-section">
+    <p class="cycle-title">— Ciclo de vida iterativo · haz clic en cada fase —</p>
+    <div class="wheel-container">
+      <!-- SVG WHEEL -->
+      <div class="wheel-svg-wrap">
+        <svg viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Background circle -->
+          <circle cx="170" cy="170" r="158" fill="#111827" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+
+          <!-- 6 segments — each 60° -->
+          <!-- 1: Comprensión del Negocio: -90° to -30° → #2dd4bf -->
+          <g class="phase-segment" onclick="showPhase(0)" id="seg0">
+            <path d="M170,170 L170,18 A152,152 0 0,1 301.7,94 Z" fill="#2dd4bf" opacity="0.85"/>
+            <text x="240" y="90" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle" transform="rotate(-30,240,90)">Negocio</text>
+          </g>
+
+          <!-- 2: Comprensión de los Datos: -30° to 30° → #38bdf8 -->
+          <g class="phase-segment" onclick="showPhase(1)" id="seg1">
+            <path d="M170,170 L301.7,94 A152,152 0 0,1 301.7,246 Z" fill="#38bdf8" opacity="0.85"/>
+            <text x="262" y="178" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle">Datos</text>
+          </g>
+
+          <!-- 3: Preparación de Datos: 30° to 90° → #818cf8 -->
+          <g class="phase-segment" onclick="showPhase(2)" id="seg2">
+            <path d="M170,170 L301.7,246 A152,152 0 0,1 170,322 Z" fill="#818cf8" opacity="0.85"/>
+            <text x="242" y="288" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle" transform="rotate(30,242,288)">Preparación</text>
+          </g>
+
+          <!-- 4: Modelado: 90° to 150° → #e8c547 -->
+          <g class="phase-segment" onclick="showPhase(3)" id="seg3">
+            <path d="M170,170 L170,322 A152,152 0 0,1 38.3,246 Z" fill="#e8c547" opacity="0.85"/>
+            <text x="98" y="288" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle" transform="rotate(-30,98,288)">Modelado</text>
+          </g>
+
+          <!-- 5: Evaluación: 150° to 210° → #fb7185 -->
+          <g class="phase-segment" onclick="showPhase(4)" id="seg4">
+            <path d="M170,170 L38.3,246 A152,152 0 0,1 38.3,94 Z" fill="#fb7185" opacity="0.85"/>
+            <text x="78" y="178" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle">Evaluación</text>
+          </g>
+
+          <!-- 6: Despliegue: 210° to 270° → #f97316 -->
+          <g class="phase-segment" onclick="showPhase(5)" id="seg5">
+            <path d="M170,170 L38.3,94 A152,152 0 0,1 170,18 Z" fill="#f97316" opacity="0.85"/>
+            <text x="98" y="90" fill="#0a0e1a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle" transform="rotate(30,98,90)">Despliegue</text>
+          </g>
+
+          <!-- Inner cutout -->
+          <circle cx="170" cy="170" r="68" fill="#0a0e1a"/>
+
+          <!-- Spinning arrows ring -->
+          <g class="spinner-ring">
+            <path d="M170,102 L176,116 L170,112 L164,116 Z" fill="rgba(255,255,255,0.4)"/>
+            <path d="M170,238 L164,224 L170,228 L176,224 Z" fill="rgba(255,255,255,0.4)"/>
+            <path d="M102,170 L116,164 L112,170 L116,176 Z" fill="rgba(255,255,255,0.4)"/>
+            <path d="M238,170 L224,176 L228,170 L224,164 Z" fill="rgba(255,255,255,0.4)"/>
+          </g>
+
+          <!-- Center label -->
+          <text x="170" y="163" fill="#e2e8f0" font-size="13" font-family="Playfair Display, serif" font-weight="700" text-anchor="middle">CRISP</text>
+          <text x="170" y="180" fill="#e2e8f0" font-size="13" font-family="Playfair Display, serif" font-weight="700" text-anchor="middle">-DM</text>
+
+          <!-- Divider lines -->
+          <line x1="170" y1="18" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+          <line x1="301.7" y1="94" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+          <line x1="301.7" y1="246" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+          <line x1="170" y1="322" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+          <line x1="38.3" y1="246" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+          <line x1="38.3" y1="94" x2="170" y2="170" stroke="#0a0e1a" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <!-- Detail cards -->
+      <div class="phase-panel">
+        <div class="phase-card" id="phase-default" style="display:block; --card-color:#2dd4bf">
+          <div class="phase-num">?</div>
+          <div class="phase-tag">Selecciona una fase</div>
+          <div class="phase-name">Explora el ciclo</div>
+          <div class="phase-desc">Haz clic en cualquier segmento del diagrama para ver el detalle de cada fase, sus objetivos y tareas clave.</div>
+        </div>
+
+        <div class="phase-card" id="phase-0" style="--card-color:#2dd4bf">
+          <div class="phase-num">1</div>
+          <div class="phase-tag">Fase 01</div>
+          <div class="phase-name">Comprensión del Negocio</div>
+          <div class="phase-desc">Define los objetivos del proyecto desde la perspectiva del negocio y traduce ese conocimiento en una definición del problema de minería de datos.</div>
+          <ul class="task-list">
+            <li>Determinar los objetivos del negocio</li>
+            <li>Evaluar la situación actual</li>
+            <li>Determinar los objetivos de minería de datos</li>
+            <li>Producir el plan del proyecto</li>
+          </ul>
+        </div>
+
+        <div class="phase-card" id="phase-1" style="--card-color:#38bdf8">
+          <div class="phase-num">2</div>
+          <div class="phase-tag">Fase 02</div>
+          <div class="phase-name">Comprensión de los Datos</div>
+          <div class="phase-desc">Recopila datos iniciales, los describe y explora para identificar problemas de calidad y obtener primeros insights.</div>
+          <ul class="task-list">
+            <li>Recopilar los datos iniciales</li>
+            <li>Describir los datos (EDA)</li>
+            <li>Explorar los datos</li>
+            <li>Verificar la calidad de los datos</li>
+          </ul>
+        </div>
+
+        <div class="phase-card" id="phase-2" style="--card-color:#818cf8">
+          <div class="phase-num">3</div>
+          <div class="phase-tag">Fase 03</div>
+          <div class="phase-name">Preparación de los Datos</div>
+          <div class="phase-desc">Cubre todas las actividades para construir el dataset final. Esta fase consume el <strong>80% del tiempo</strong> del proyecto.</div>
+          <ul class="task-list">
+            <li>Seleccionar los datos relevantes</li>
+            <li>Limpiar los datos (Data Munging)</li>
+            <li>Construir nuevas variables/features</li>
+            <li>Integrar y formatear los datos</li>
+          </ul>
+        </div>
+
+        <div class="phase-card" id="phase-3" style="--card-color:#e8c547">
+          <div class="phase-num">4</div>
+          <div class="phase-tag">Fase 04</div>
+          <div class="phase-name">Modelado</div>
+          <div class="phase-desc">Selecciona y aplica diferentes técnicas de modelado, calibra sus parámetros y evalúa los resultados.</div>
+          <ul class="task-list">
+            <li>Seleccionar la técnica de modelado</li>
+            <li>Diseñar el plan de pruebas</li>
+            <li>Construir el/los modelos</li>
+            <li>Evaluar el modelo técnicamente</li>
+          </ul>
+        </div>
+
+        <div class="phase-card" id="phase-4" style="--card-color:#fb7185">
+          <div class="phase-num">5</div>
+          <div class="phase-tag">Fase 05</div>
+          <div class="phase-name">Evaluación</div>
+          <div class="phase-desc">Evalúa el modelo desde la perspectiva del negocio y decide si se despliega o si hay que iterar.</div>
+          <ul class="task-list">
+            <li>Evaluar resultados vs objetivos del negocio</li>
+            <li>Revisar el proceso completo</li>
+            <li>Determinar los próximos pasos</li>
+            <li>¿Desplegar o iterar? ← punto clave</li>
+          </ul>
+        </div>
+
+        <div class="phase-card" id="phase-5" style="--card-color:#f97316">
+          <div class="phase-num">6</div>
+          <div class="phase-tag">Fase 06</div>
+          <div class="phase-name">Despliegue</div>
+          <div class="phase-desc">Pone el modelo en producción para que el cliente o usuario final pueda utilizarlo y generar valor real.</div>
+          <ul class="task-list">
+            <li>Planificar el despliegue</li>
+            <li>Planificar el monitoreo y mantenimiento</li>
+            <li>Producir el informe final</li>
+            <li>Revisar el proyecto</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="hint">↺ El proceso es iterativo — puedes volver a cualquier fase anterior</p>
+  </div>
+
+  <!-- FLOW STRIP -->
+  <div class="flow-section">
+    <div class="section-header">
+      <div class="line"></div>
+      <h2>Flujo secuencial</h2>
+      <div class="line"></div>
+    </div>
+    <div class="flow-grid">
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(45,212,191,0.1); border-color:#2dd4bf; --icon-color:rgba(45,212,191,0.4);">🎯</div>
+        <div class="flow-label">Comprensión<br>del Negocio</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(56,189,248,0.1); border-color:#38bdf8; --icon-color:rgba(56,189,248,0.4);">🔍</div>
+        <div class="flow-label">Comprensión<br>de los Datos</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(129,140,248,0.1); border-color:#818cf8; --icon-color:rgba(129,140,248,0.4);">🧹</div>
+        <div class="flow-label">Preparación<br>de Datos</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(232,197,71,0.1); border-color:#e8c547; --icon-color:rgba(232,197,71,0.4);">🤖</div>
+        <div class="flow-label">Modelado</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(251,113,133,0.1); border-color:#fb7185; --icon-color:rgba(251,113,133,0.4);">⚖️</div>
+        <div class="flow-label">Evaluación</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon" style="background:rgba(249,115,22,0.1); border-color:#f97316; --icon-color:rgba(249,115,22,0.4);">🚀</div>
+        <div class="flow-label">Despliegue</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div class="tips-grid">
+    <div class="tip-card" style="--tc:#2dd4bf">
+      <div class="tip-icon">🔄</div>
+      <div class="tip-title">Proceso Iterativo</div>
+      <div class="tip-body">CRISP-DM no es lineal. Puedes (y debes) volver a fases anteriores cuando los hallazgos lo requieran. La iteración es su mayor fortaleza.</div>
+    </div>
+    <div class="tip-card" style="--tc:#818cf8">
+      <div class="tip-icon">⚡</div>
+      <div class="tip-title">Agile + CRISP-DM</div>
+      <div class="tip-body">Combina CRISP-DM con Scrum o Kanban para entregar valor de forma incremental. El enfoque ágil acelera el feedback y reduce el riesgo.</div>
+    </div>
+    <div class="tip-card" style="--tc:#e8c547">
+      <div class="tip-icon">📊</div>
+      <div class="tip-title">80% en Datos</div>
+      <div class="tip-body">La preparación de datos consume la mayor parte del esfuerzo. Invertir aquí define la calidad de todo lo demás en el proyecto.</div>
+    </div>
+    <div class="tip-card" style="--tc:#fb7185">
+      <div class="tip-icon">📝</div>
+      <div class="tip-title">Documentación Justa</div>
+      <div class="tip-body">Documenta lo necesario para no frenar la entrega. Evita la burocracia: el objetivo es generar valor, no papeleo.</div>
+    </div>
+  </div>
+
+  <footer>
+    <p>CRISP-DM · Cross-Industry Standard Process for Data Mining · Referencia: <a href="https://www.datascience-pm.com/crisp-dm-2/" target="_blank">datascience-pm.com/crisp-dm-2</a></p>
+    <p style="margin-top:8px; opacity:0.5">Diseñado para aprendizaje · Data Science · Business Intelligence</p>
+  </footer>
+</div>
+
+<script>
+  function showPhase(idx) {
+    // Hide all cards
+    document.getElementById('phase-default').style.display = 'none';
+    for(let i = 0; i < 6; i++) {
+      const c = document.getElementById('phase-' + i);
+      c.classList.remove('visible');
+      c.style.display = 'none';
+    }
+    // Show selected
+    const target = document.getElementById('phase-' + idx);
+    target.style.display = 'block';
+    // Force reflow for animation
+    void target.offsetWidth;
+    target.classList.add('visible');
+
+    // Highlight segment
+    for(let i = 0; i < 6; i++) {
+      document.getElementById('seg' + i).style.opacity = (i === idx) ? '1' : '0.55';
+    }
+  }
+</script>
+</body>
+</html>
